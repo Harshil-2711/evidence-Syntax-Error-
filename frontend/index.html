@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evidence-Gated Self-Healing Agent</title>
+
+  <!-- React 18 via CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <!-- Babel for in-browser JSX transpilation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Inter + JetBrains Mono fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ─── CSS reset + base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg0: #07070f;
+      --bg1: #0d0d1a;
+      --bg2: #12121f;
+      --bg3: #181825;
+      --border: #1e1e30;
+      --border-hi: #2a2a45;
+
+      --green:  #22c55e;
+      --red:    #ef4444;
+      --amber:  #f59e0b;
+      --blue:   #3b82f6;
+      --cyan:   #06b6d4;
+      --purple: #a855f7;
+      --pink:   #ec4899;
+      --slate:  #94a3b8;
+      --muted:  #475569;
+
+      --claim-col:   #7c3aed;
+      --evidence-col:#0e7490;
+      --verdict-col: #166534;
+
+      --font-ui:   'Inter', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
+    html, body { height: 100%; background: var(--bg0); color: #e2e8f0; font-family: var(--font-ui); }
+    #root { min-height: 100%; }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg1); }
+    ::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 3px; }
+
+    /* ─── Typography ─── */
+    .mono { font-family: var(--font-mono); }
+    .text-xs  { font-size: 11px; line-height: 1.5; }
+    .text-sm  { font-size: 13px; line-height: 1.6; }
+    .text-base{ font-size: 15px; }
+    .text-lg  { font-size: 18px; }
+    .text-xl  { font-size: 22px; }
+    .text-2xl { font-size: 28px; }
+    .text-3xl { font-size: 36px; }
+    .text-4xl { font-size: 48px; }
+    .fw-500 { font-weight: 500; }
+    .fw-600 { font-weight: 600; }
+    .fw-700 { font-weight: 700; }
+
+    /* ─── Colors ─── */
+    .c-green  { color: var(--green); }
+    .c-red    { color: var(--red); }
+    .c-amber  { color: var(--amber); }
+    .c-blue   { color: var(--blue); }
+    .c-cyan   { color: var(--cyan); }
+    .c-purple { color: var(--purple); }
+    .c-slate  { color: var(--slate); }
+    .c-muted  { color: var(--muted); }
+
+    /* ─── Layout ─── */
+    .app { max-width: 1400px; margin: 0 auto; padding: 0 24px 64px; }
+
+    .grid-2 { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .flex    { display: flex; }
+    .flex-col{ flex-direction: column; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .gap-2  { gap: 8px; }
+    .gap-3  { gap: 12px; }
+    .gap-4  { gap: 16px; }
+    .gap-6  { gap: 24px; }
+    .gap-8  { gap: 32px; }
+    .grow   { flex: 1; }
+    .wrap   { flex-wrap: wrap; }
+
+    /* ─── Cards ─── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+    }
+    .card-sm { padding: 12px; border-radius: var(--radius); }
+    .card:hover { border-color: var(--border-hi); }
+
+    /* ─── Buttons ─── */
+    button {
+      font-family: var(--font-ui);
+      cursor: pointer;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #fff;
+      padding: 10px 20px;
+    }
+    .btn-primary:hover:not(:disabled) { background: #2563eb; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--slate);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+    }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--border-hi); color: #e2e8f0; }
+
+    .btn-scenario {
+      padding: 10px 16px;
+      border: 1px solid var(--border);
+      background: var(--bg3);
+      color: var(--slate);
+      text-align: left;
+      border-radius: var(--radius);
+      transition: all 0.15s;
+    }
+    .btn-scenario:hover:not(:disabled) { border-color: var(--border-hi); color: #e2e8f0; }
+    .btn-scenario.active-green  { border-color: var(--green);  color: var(--green);  background: rgba(34,197,94,.08); }
+    .btn-scenario.active-amber  { border-color: var(--amber);  color: var(--amber);  background: rgba(245,158,11,.08); }
+    .btn-scenario.active-red    { border-color: var(--red);    color: var(--red);    background: rgba(239,68,68,.08); }
+    .btn-scenario.active-purple { border-color: var(--purple); color: var(--purple); background: rgba(168,85,247,.08); }
+
+    /* ─── Badges ─── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      letter-spacing: 0.05em;
+      border: 1px solid;
+    }
+    .badge-green  { color: var(--green);  border-color: rgba(34,197,94,.3);  background: rgba(34,197,94,.08); }
+    .badge-red    { color: var(--red);    border-color: rgba(239,68,68,.3);  background: rgba(239,68,68,.08); }
+    .badge-amber  { color: var(--amber);  border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.08); }
+    .badge-purple { color: var(--purple); border-color: rgba(168,85,247,.3); background: rgba(168,85,247,.08); }
+    .badge-cyan   { color: var(--cyan);   border-color: rgba(6,182,212,.3);  background: rgba(6,182,212,.08); }
+    .badge-slate  { color: var(--slate);  border-color: rgba(148,163,184,.2);background: rgba(148,163,184,.05); }
+
+    /* ─── Section labels ─── */
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* ─── Dividers ─── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+    /* ─── Header ─── */
+    .header {
+      padding: 20px 0 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 28px;
+    }
+    .header-logo {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700;
+    }
+    .header-tagline {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    /* ─── Goal input ─── */
+    textarea {
+      width: 100%;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      color: #e2e8f0;
+      font-family: var(--font-ui);
+      font-size: 14px;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    textarea:focus { border-color: var(--blue); }
+
+    /* ─── Pipeline ─── */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      overflow-x: auto;
+      padding: 4px 0;
+    }
+    .pipeline-stage {
+      display: flex; flex-direction: column; align-items: center;
+      min-width: 100px;
+      padding: 12px 8px;
+      border-radius: var(--radius);
+      transition: all 0.3s;
+      position: relative;
+    }
+    .pipeline-stage.idle   { opacity: 0.3; }
+    .pipeline-stage.active { opacity: 1; }
+    .pipeline-stage.done   { opacity: 1; }
+    .pipeline-stage.error  { opacity: 1; }
+
+    .pipeline-icon {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      border: 2px solid;
+      margin-bottom: 8px;
+      transition: all 0.3s;
+    }
+    .stage-idle   .pipeline-icon { border-color: var(--border);  background: var(--bg3); }
+    .stage-active .pipeline-icon { border-color: var(--blue);    background: rgba(59,130,246,.15); animation: pulse 1.2s infinite; }
+    .stage-done   .pipeline-icon { border-color: var(--green);   background: rgba(34,197,94,.12); }
+    .stage-error  .pipeline-icon { border-color: var(--red);     background: rgba(239,68,68,.12); }
+    .stage-recover .pipeline-icon { border-color: var(--amber);  background: rgba(245,158,11,.12); }
+
+    .pipeline-arrow {
+      color: var(--muted);
+      font-size: 18px;
+      flex-shrink: 0;
+      margin: 0 2px;
+    }
+
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(59,130,246,.4); }
+      50%      { box-shadow: 0 0 0 8px rgba(59,130,246,0); }
+    }
+
+    /* ─── Task graph ─── */
+    .action-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .action-card:hover  { border-color: var(--border-hi); }
+    .action-card.selected { border-color: var(--cyan); background: rgba(6,182,212,.04); }
+    .action-card.contradiction { border-left: 3px solid var(--amber); }
+    .action-card.rolled-back  { opacity: 0.65; }
+
+    .action-type-name {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: #c4b5fd;
+    }
+    .action-meta {
+      display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px;
+    }
+
+    /* ─── Recovery step line ─── */
+    .recovery-line {
+      display: flex; align-items: flex-start; gap: 12px; padding: 10px 0;
+    }
+    .recovery-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      flex-shrink: 0; margin-top: 4px;
+    }
+    .recovery-connector {
+      width: 2px; background: var(--border); flex-shrink: 0;
+      height: 24px; margin: 0 auto; margin-left: 4px;
+    }
+
+    /* ─── Evidence inspector ─── */
+    .evidence-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      gap: 0;
+      align-items: stretch;
+    }
+
+    .ev-col {
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .ev-claim    { background: rgba(124,58,237,.06); border: 1px solid rgba(124,58,237,.2); }
+    .ev-evidence { background: rgba(14,116,144,.06); border: 1px solid rgba(14,116,144,.2); }
+    .ev-verdict  { background: rgba(22,101,52,.06);  border: 1px solid rgba(22,101,52,.2); }
+    .ev-verdict-fail { background: rgba(127,29,29,.06); border: 1px solid rgba(239,68,68,.25); }
+
+    .ev-layer-label {
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .lbl-claim    { color: #a78bfa; }
+    .lbl-evidence { color: var(--cyan); }
+    .lbl-verdict  { color: var(--green); }
+    .lbl-verdict-fail { color: var(--red); }
+
+    .ev-separator {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 8px;
+      font-size: 20px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .sep-ne { color: var(--amber); }
+    .sep-arr{ color: var(--muted); }
+
+    .ev-kv {
+      display: flex; gap: 6px; align-items: baseline;
+      font-family: var(--font-mono); font-size: 12px;
+    }
+    .ev-key   { color: var(--slate); }
+    .ev-val-t { color: var(--green); }
+    .ev-val-f { color: var(--red); }
+    .ev-val   { color: var(--cyan); }
+
+    .contradiction-banner {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(245,158,11,.08);
+      border: 1px solid rgba(245,158,11,.35);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
+    }
+
+    .empty-inspector {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 220px; gap: 10px;
+      color: var(--muted); font-size: 13px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-lg);
+    }
+    .empty-inspector-icon { font-size: 32px; opacity: 0.4; }
+
+    /* ─── Audit timeline ─── */
+    .audit-event {
+      display: flex; gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .audit-event:last-child { border-bottom: none; }
+    .audit-agent-badge {
+      flex-shrink: 0;
+      width: 110px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-align: center;
+      align-self: flex-start;
+      margin-top: 2px;
+    }
+    .agent-executor        { background: rgba(168,85,247,.15); color: #c4b5fd; }
+    .agent-evidence_collector { background: rgba(6,182,212,.12); color: var(--cyan); }
+    .agent-verifier        { background: rgba(34,197,94,.12);  color: var(--green); }
+    .agent-recovery_agent  { background: rgba(245,158,11,.12); color: var(--amber); }
+    .agent-rollback        { background: rgba(239,68,68,.12);  color: var(--red); }
+    .agent-coordinator     { background: rgba(59,130,246,.12); color: var(--blue); }
+
+    /* ─── Final status ─── */
+    .final-status-card {
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      text-align: center;
+      border: 1px solid;
+    }
+    .fs-completed { background: rgba(34,197,94,.06);  border-color: rgba(34,197,94,.25); }
+    .fs-blocked   { background: rgba(239,68,68,.06);  border-color: rgba(239,68,68,.25); }
+    .fs-rolled    { background: rgba(168,85,247,.06); border-color: rgba(168,85,247,.25); }
+    .fs-unknown   { background: var(--bg2);            border-color: var(--border); }
+
+    .status-icon { font-size: 48px; margin-bottom: 12px; display: block; }
+    .status-text { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 4px; }
+    .status-sub  { font-size: 13px; color: var(--slate); font-family: var(--font-mono); }
+
+    .status-metrics {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 24px;
+    }
+    .stat-box {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+    }
+    .stat-value { font-size: 24px; font-weight: 700; font-family: var(--font-mono); margin-bottom: 2px; }
+    .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+
+    /* ─── Spinner ─── */
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Fade in ─── */
+    .fade-in { animation: fadeIn 0.4s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* ─── Error ─── */
+    .error-box {
+      background: rgba(239,68,68,.06);
+      border: 1px solid rgba(239,68,68,.25);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      color: var(--red);
+      font-size: 13px;
+    }
+
+    /* ─── Spacing utilities ─── */
+    .mt-2  { margin-top:  8px; }
+    .mt-3  { margin-top: 12px; }
+    .mt-4  { margin-top: 16px; }
+    .mt-6  { margin-top: 24px; }
+    .mt-8  { margin-top: 32px; }
+    .mb-2  { margin-bottom:  8px; }
+    .mb-3  { margin-bottom: 12px; }
+    .mb-4  { margin-bottom: 16px; }
+    .mb-6  { margin-bottom: 24px; }
+    .p-4   { padding: 16px; }
+    .px-3  { padding-left: 12px; padding-right: 12px; }
+    .overflow-auto { overflow: auto; }
+
+    /* ─── Misc ─── */
+    .w-full { width: 100%; }
+    .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    input[type=text], input[type=number] {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 7px 10px;
+      color: #e2e8f0; font-family: var(--font-mono); font-size: 13px;
+      outline: none; transition: border-color 0.15s; width: 100%;
+    }
+    input:focus { border-color: var(--blue); }
+    select {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 7px 10px;
+      color: #e2e8f0; font-family: var(--font-ui); font-size: 13px;
+      outline: none; cursor: pointer; width: 100%;
+    }
+    label { font-size: 11px; color: var(--slate); display: block; margin-bottom: 4px; font-weight: 500; }
+
+    /* ─── Scrollable audit list ─── */
+    .audit-scroll { max-height: 320px; overflow-y: auto; }
+
+    /* ─── Tabs ─── */
+    .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .tab  { padding: 8px 14px; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; background: none; border-radius: 0; }
+    .tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+    .tab:hover:not(.active) { color: var(--slate); }
+
+    /* ─── Injector form ─── */
+    .injector-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .evidence-grid { grid-template-columns: 1fr; }
+      .ev-separator { display: none; }
+      .status-metrics { grid-template-columns: repeat(3, 1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+
+/* ═══════════════════════════════════════════════════════════════
+   API CLIENT
+═══════════════════════════════════════════════════════════════ */
+const API = (() => {
+  const BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:8001'
+    : window.location.origin;
+
+  const call = async (method, path, body) => {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(BASE + path, opts);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    return res.json();
+  };
+
+  return {
+    runWorkflow: (goal, cfg = {}) => call('POST', '/workflow/run', { goal, ...cfg }),
+    getWorkflow: (id) => call('GET', `/workflow/${id}`),
+    getActions:  (id) => call('GET', `/workflow/${id}/actions`),
+    getEvidence: (id) => call('GET', `/workflow/${id}/evidence`),
+    getAudit:    (id) => call('GET', `/workflow/${id}/audit`),
+    injectFailure:(id, cfg) => call('POST', `/workflow/${id}/failure-injection`, cfg),
+    health:      () => call('GET', '/health'),
+  };
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════════════════════ */
+const DEFAULT_GOAL = 'Create project Hackathon Alpha, add Harshit as a member, make the project private, and generate a report.';
+
+const SCENARIOS = [
+  {
+    id: 'happy',
+    label: '✓ Happy Path',
+    color: 'green',
+    description: 'All actions execute and verify successfully → COMPLETED',
+    runConfig: { max_retries: 3, max_replan_cycles: 2, atomic_completion: false },
+    injection: null,
+  },
+  {
+    id: 'false_success',
+    label: '⚠ False Success',
+    color: 'amber',
+    description: 'Executor lies — verifier catches it, recovery retries → COMPLETED',
+    runConfig: { max_retries: 3, max_replan_cycles: 2 },
+    injection: { tool_name: 'add_member', mode: 'FALSE_SUCCESS', max_fires: 1, max_retries: 3, max_replan_cycles: 2, param_filter: { project_id: 'hackathon-alpha' } },
+  },
+  {
+    id: 'unrecoverable',
+    label: '✗ Unrecoverable',
+    color: 'red',
+    description: 'Permanent tool failure exhausts all retries → BLOCKED',
+    runConfig: { max_retries: 3, max_replan_cycles: 2 },
+    injection: { tool_name: 'create_project', mode: 'EXECUTION_FAILURE', max_fires: 0, max_retries: 2, max_replan_cycles: 0, param_filter: { project_id: 'hackathon-alpha' } },
+  },
+  {
+    id: 'rollback',
+    label: '↩ Atomic Rollback',
+    color: 'purple',
+    description: 'Partial failure with atomic policy → ROLLED_BACK, sandbox clean',
+    runConfig: { max_retries: 3, max_replan_cycles: 2 },
+    injection: { tool_name: 'set_permission', mode: 'EXECUTION_FAILURE', max_fires: 0, max_retries: 0, max_replan_cycles: 0, atomic_completion: true, param_filter: { project_id: 'hackathon-alpha' } },
+  },
+];
+
+const STATUS_CONFIG = {
+  COMPLETED:    { cls: 'fs-completed', icon: '✓', label: 'VERIFIED COMPLETED',  color: 'var(--green)', badge: 'badge-green' },
+  BLOCKED:      { cls: 'fs-blocked',   icon: '✗', label: 'NOT VERIFIED — BLOCKED', color: 'var(--red)', badge: 'badge-red' },
+  ROLLED_BACK:  { cls: 'fs-rolled',    icon: '↩', label: 'ROLLED BACK',         color: 'var(--purple)', badge: 'badge-purple' },
+  FAILED:       { cls: 'fs-blocked',   icon: '✗', label: 'FAILED',               color: 'var(--red)', badge: 'badge-red' },
+};
+
+const ACTION_STATUS_BADGE = {
+  SUCCEEDED:   'badge-green',
+  FAILED:      'badge-red',
+  ROLLED_BACK: 'badge-purple',
+  PENDING:     'badge-slate',
+};
+
+const VERDICT_BADGE = {
+  PASS:         'badge-green',
+  FAIL:         'badge-red',
+  INCONCLUSIVE: 'badge-amber',
+  PENDING:      'badge-slate',
+};
+
+const AGENT_ICONS = {
+  planner:           { icon: '◈', label: 'Planner',          cls: 'stage-planner' },
+  executor:          { icon: '▶', label: 'Executor',         cls: 'stage-executor' },
+  evidence_collector:{ icon: '⬡', label: 'Evidence',         cls: 'stage-evidence' },
+  verifier:          { icon: '◻', label: 'Verifier',         cls: 'stage-verifier' },
+  recovery_agent:    { icon: '↻', label: 'Recovery',         cls: 'stage-recovery' },
+  rollback:          { icon: '↩', label: 'Rollback',         cls: 'stage-rollback' },
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPONENTS
+═══════════════════════════════════════════════════════════════ */
+
+/* ─── Badge ─── */
+const Badge = ({ cls, children }) => (
+  <span className={`badge ${cls}`}>{children}</span>
+);
+
+/* ─── Section label ─── */
+const SectionLabel = ({ children }) => (
+  <p className="section-label">{children}</p>
+);
+
+/* ─── Spinner ─── */
+const Spinner = () => <div className="spinner" />;
+
+/* ─── Header ─── */
+function Header({ health }) {
+  return (
+    <header className="header">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="header-logo">E</div>
+          <div>
+            <div className="text-lg fw-700">Evidence-Gated Self-Healing Agent</div>
+            <div className="header-tagline">
+              CLAIM ≠ EVIDENCE ≠ VERIFICATION &nbsp;·&nbsp; Zero-Trust AI Workflow
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {health && (
+            <Badge cls="badge-green">● API ONLINE</Badge>
+          )}
+          {health === false && (
+            <Badge cls="badge-red">● API OFFLINE</Badge>
+          )}
+          {health === null && (
+            <Badge cls="badge-slate">● Checking…</Badge>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ─── Goal Input ─── */
+function GoalInput({ onRun, activeScenario, loading }) {
+  const [goal, setGoal] = useState(DEFAULT_GOAL);
+  const [customInject, setCustomInject] = useState({
+    tool_name: 'add_member',
+    mode: 'FALSE_SUCCESS',
+    max_fires: 1,
+    max_retries: 3,
+    atomic_completion: false,
+  });
+  const [showCustom, setShowCustom] = useState(false);
+
+  const FAILURE_MODES = ['FALSE_SUCCESS','EXECUTION_FAILURE','TEMPORARY_FAILURE','PERMISSION_FAILURE','MISSING_EVIDENCE','CONTRADICTORY_STATE'];
+  const TOOLS = ['create_project','add_member','set_permission','generate_report','delete_project','remove_member'];
+
+  return (
+    <section className="card mb-6">
+      <SectionLabel>Goal Input</SectionLabel>
+      <textarea
+        value={goal}
+        onChange={e => setGoal(e.target.value)}
+        disabled={loading}
+        placeholder="What should the agent accomplish?"
+        rows={3}
+      />
+
+      {/* Demo scenario buttons */}
+      <div className="mt-3 mb-1">
+        <SectionLabel>Demo Scenarios</SectionLabel>
+        <div className="flex wrap gap-2 mt-2">
+          {SCENARIOS.map(s => (
+            <button
+              key={s.id}
+              className={`btn-scenario ${activeScenario?.id === s.id ? 'active-' + s.color : ''}`}
+              disabled={loading}
+              onClick={() => onRun(goal, s)}
+              title={s.description}
+            >
+              <div className="fw-600">{s.label}</div>
+              <div className="text-xs c-muted mt-2" style={{maxWidth: 180}}>{s.description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <hr className="divider" />
+
+      {/* Custom failure injection */}
+      <div>
+        <div className="flex items-center justify-between">
+          <SectionLabel>Custom Failure Injection</SectionLabel>
+          <button className="btn-ghost text-xs" onClick={() => setShowCustom(v => !v)}>
+            {showCustom ? '▲ Hide' : '▼ Configure'}
+          </button>
+        </div>
+
+        {showCustom && (
+          <div className="mt-3 fade-in">
+            <div className="injector-form mb-3">
+              <div>
+                <label>Tool</label>
+                <select value={customInject.tool_name} onChange={e => setCustomInject(p => ({...p, tool_name: e.target.value}))}>
+                  {TOOLS.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label>Failure Mode</label>
+                <select value={customInject.mode} onChange={e => setCustomInject(p => ({...p, mode: e.target.value}))}>
+                  {FAILURE_MODES.map(m => <option key={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label>Max Fires (0=unlimited)</label>
+                <input type="number" min={0} max={10} value={customInject.max_fires}
+                  onChange={e => setCustomInject(p => ({...p, max_fires: +e.target.value}))} />
+              </div>
+              <div>
+                <label>Max Retries</label>
+                <input type="number" min={0} max={10} value={customInject.max_retries}
+                  onChange={e => setCustomInject(p => ({...p, max_retries: +e.target.value}))} />
+              </div>
+            </div>
+            <button
+              className="btn-primary"
+              disabled={loading}
+              onClick={() => onRun(goal, {
+                id: 'custom',
+                label: '⚡ Custom Injection',
+                color: 'red',
+                description: `${customInject.mode} on ${customInject.tool_name}`,
+                runConfig: { max_retries: customInject.max_retries },
+                injection: { ...customInject, max_replan_cycles: 1 },
+              })}
+            >
+              Run with Custom Injection
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ─── Pipeline Flow ─── */
+function PipelineFlow({ audit, finalStatus, loading }) {
+  const events = audit?.events || [];
+
+  const agentsSeen = new Set(events.map(e => e.agent));
+  const hasRecovery = agentsSeen.has('recovery_agent');
+  const hasRollback = agentsSeen.has('rollback');
+
+  const getStatus = (agent) => {
+    if (loading) return agent === 'planner' ? 'stage-active' : 'stage-idle';
+    if (!events.length) return 'stage-idle';
+    if (!agentsSeen.has(agent) && agent !== 'planner') return 'stage-idle';
+    if (agent === 'verifier') {
+      const fails = events.filter(e => e.agent === 'verifier' && e.verification === 'FAIL');
+      if (fails.length) return 'stage-error';
+    }
+    if (agent === 'recovery_agent') return hasRecovery ? 'stage-recover' : 'stage-idle';
+    if (agent === 'rollback') return hasRollback ? 'stage-error' : 'stage-idle';
+    return 'stage-done';
+  };
+
+  const stages = [
+    { id: 'planner', icon: '◈', label: 'Planner', count: null },
+    { id: 'executor', icon: '▶', label: 'Executor', count: events.filter(e=>e.agent==='executor').length || null },
+    { id: 'evidence_collector', icon: '⬡', label: 'Evidence', count: events.filter(e=>e.agent==='evidence_collector').length || null },
+    { id: 'verifier', icon: '◻', label: 'Verifier', count: events.filter(e=>e.agent==='verifier').length || null },
+    { id: 'recovery_agent', icon: '↻', label: 'Recovery', count: events.filter(e=>e.agent==='recovery_agent').length || null },
+    { id: 'rollback', icon: '↩', label: 'Rollback', count: events.filter(e=>e.agent==='rollback').length || null },
+  ];
+
+  const statusIcon = { 'stage-done':'✓','stage-error':'✗','stage-recover':'↻','stage-active':'…','stage-idle':'·' };
+  const statusColor = { 'stage-done':'var(--green)','stage-error':'var(--red)','stage-recover':'var(--amber)','stage-active':'var(--blue)','stage-idle':'var(--muted)' };
+
+  return (
+    <div className="card mb-4 fade-in">
+      <SectionLabel>Agent Pipeline</SectionLabel>
+      <div className="pipeline">
+        {stages.map((s, i) => {
+          const st = getStatus(s.id);
+          const isIdle = st === 'stage-idle';
+          return (
+            <React.Fragment key={s.id}>
+              <div className={`pipeline-stage ${st}`} style={{opacity: isIdle ? 0.28 : 1}}>
+                <div className="pipeline-icon" style={{borderColor: isIdle ? 'var(--border)' : statusColor[st], background: isIdle ? 'var(--bg3)' : `${statusColor[st]}18`}}>
+                  <span style={{fontSize: 18}}>{s.icon}</span>
+                </div>
+                <div className="text-xs fw-500" style={{color: isIdle ? 'var(--muted)' : statusColor[st]}}>{s.label}</div>
+                {s.count > 0 && <div className="text-xs c-muted">×{s.count}</div>}
+                <div className="text-xs mono" style={{color: statusColor[st]}}>{statusIcon[st]}</div>
+              </div>
+              {i < stages.length-1 && (
+                <div className="pipeline-arrow" style={{color: isIdle ? 'var(--border)' : 'var(--muted)'}}>→</div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Action Card ─── */
+function ActionCard({ action, selected, onClick, index }) {
+  const isContradiction = action.contradiction_detected;
+  const isRolledBack   = action.final_status === 'ROLLED_BACK';
+
+  return (
+    <div
+      className={`action-card mb-2 ${selected ? 'selected' : ''} ${isContradiction ? 'contradiction' : ''} ${isRolledBack ? 'rolled-back' : ''}`}
+      onClick={onClick}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="c-muted mono text-xs">{String(index+1).padStart(2,'0')}</span>
+          <span className="action-type-name">{action.action_type}</span>
+        </div>
+        <Badge cls={ACTION_STATUS_BADGE[action.final_status] || 'badge-slate'}>
+          {action.final_status}
+        </Badge>
+      </div>
+
+      {isContradiction && (
+        <div style={{fontSize:10, color:'var(--amber)', fontFamily:'var(--font-mono)', marginBottom:6, display:'flex', alignItems:'center', gap:4}}>
+          ⚠ CLAIM ≠ EVIDENCE
+        </div>
+      )}
+
+      <div className="action-meta">
+        <span style={{fontSize:10, color:'var(--muted)', fontFamily:'var(--font-mono)'}}>
+          Claim: <span style={{color: action.executor_claim?.self_reported_success ? 'var(--green)' : 'var(--red)'}}>
+            {action.executor_claim?.self_reported_success ? '✓' : '✗'}
+          </span>
+        </span>
+        <span style={{fontSize:10, color:'var(--muted)', fontFamily:'var(--font-mono)'}}>
+          Verify: <span style={{color: action.verification_verdict === 'PASS' ? 'var(--green)' : action.verification_verdict === 'FAIL' ? 'var(--red)' : 'var(--amber)'}}>
+            {action.verification_verdict === 'PASS' ? '✓' : action.verification_verdict === 'FAIL' ? '✗' : '?'}
+          </span>
+        </span>
+        {action.retry_count > 0 && (
+          <Badge cls="badge-amber">↻ ×{action.retry_count}</Badge>
+        )}
+        <Badge cls={VERDICT_BADGE[action.verification_verdict] || 'badge-slate'}>
+          {action.verification_verdict}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Task Graph ─── */
+function TaskGraph({ actions, selectedId, onSelect, finalStatus }) {
+  if (!actions.length) {
+    return (
+      <div className="card" style={{height: 200, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--muted)', fontSize:13}}>
+        No actions yet
+      </div>
+    );
+  }
+  const cfg = STATUS_CONFIG[finalStatus] || STATUS_CONFIG['FAILED'];
+
+  return (
+    <div className="card" style={{height: '100%'}}>
+      <SectionLabel>Task Graph</SectionLabel>
+      <div style={{maxHeight: 420, overflowY:'auto'}}>
+        {actions.map((a, i) => (
+          <ActionCard
+            key={a.action_id}
+            action={a}
+            index={i}
+            selected={selectedId === a.action_id}
+            onClick={() => onSelect(a.action_id)}
+          />
+        ))}
+      </div>
+      {finalStatus && (
+        <div className="mt-3" style={{
+          borderTop: '1px solid var(--border)', paddingTop: 12,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+          color: cfg.color, fontFamily:'var(--font-mono)', fontWeight:700, fontSize:14
+        }}>
+          {cfg.icon} {finalStatus}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Evidence Inspector ─── */
+function EvidenceInspector({ evidence, selectedId, actions }) {
+  if (!selectedId) {
+    return (
+      <div className="card">
+        <SectionLabel>Evidence Inspector</SectionLabel>
+        <div className="empty-inspector">
+          <span className="empty-inspector-icon">◈</span>
+          <span>Select an action to inspect the 3-layer evidence</span>
+          <span className="text-xs c-muted mono">CLAIM · EVIDENCE · VERIFICATION</span>
+        </div>
+      </div>
+    );
+  }
+
+  const triples = (evidence?.evidence || []).filter(t => t.action_id === selectedId);
+  const action  = actions.find(a => a.action_id === selectedId);
+
+  if (!triples.length) {
+    return (
+      <div className="card">
+        <SectionLabel>Evidence Inspector</SectionLabel>
+        <div className="c-muted text-sm">No evidence collected for this action.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card fade-in">
+      <div className="flex items-center justify-between mb-3">
+        <SectionLabel>Evidence Inspector</SectionLabel>
+        {action && (
+          <span className="mono text-xs c-muted">{action.action_type}</span>
+        )}
+      </div>
+
+      {triples.map((triple, idx) => (
+        <EvidenceTriple key={idx} triple={triple} attempt={idx} total={triples.length} />
+      ))}
+    </div>
+  );
+}
+
+function EvidenceTriple({ triple, attempt, total }) {
+  const { executor_claim, machine_evidence, verification_result, contradiction_detected } = triple;
+  const verdict = verification_result?.verdict;
+  const isPass  = verdict === 'PASS';
+  const isFail  = verdict === 'FAIL';
+
+  return (
+    <div style={{marginBottom: total > 1 ? 20 : 0}}>
+      {total > 1 && (
+        <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:10}}>
+          <span style={{fontFamily:'var(--font-mono)', fontSize:10, color:'var(--muted)'}}>ATTEMPT {attempt+1}</span>
+          {attempt > 0 && <Badge cls="badge-amber">RETRY ↻</Badge>}
+          {attempt === total-1 && attempt > 0 && <Badge cls="badge-green">FINAL</Badge>}
+        </div>
+      )}
+
+      {contradiction_detected && (
+        <div className="contradiction-banner">
+          ⚠️ &nbsp; EXECUTOR CLAIM CONTRADICTS MACHINE EVIDENCE — ZERO-TRUST VIOLATION CAUGHT
+        </div>
+      )}
+
+      {/* THE KEY VISUAL: 3-column evidence grid */}
+      <div className="evidence-grid">
+
+        {/* Column 1: EXECUTOR CLAIM */}
+        <div className={`ev-col ev-claim`}>
+          <div>
+            <div className="ev-layer-label lbl-claim">Executor Claim</div>
+            <div style={{fontSize:9, color:'rgba(167,139,250,.6)', fontFamily:'var(--font-mono)', marginBottom:8}}>⚠ UNVERIFIED</div>
+          </div>
+          <div>
+            <div style={{fontFamily:'var(--font-mono)', fontSize:14, fontWeight:700,
+              color: executor_claim?.self_reported_success ? 'var(--green)' : 'var(--red)'}}>
+              {executor_claim?.self_reported_success ? '✓ Claimed Success' : '✗ Reported Failure'}
+            </div>
+            {executor_claim?.failure_mode && (
+              <div style={{marginTop:8}}>
+                <Badge cls="badge-amber">{executor_claim.failure_mode}</Badge>
+              </div>
+            )}
+            {executor_claim?.error_message && (
+              <div className="mono text-xs c-muted mt-2" style={{wordBreak:'break-all'}}>
+                {executor_claim.error_message}
+              </div>
+            )}
+          </div>
+          <div style={{marginTop:'auto', paddingTop:8, borderTop:'1px solid rgba(124,58,237,.15)'}}>
+            <div style={{fontSize:9, color:'rgba(167,139,250,.5)', fontFamily:'var(--font-mono)', lineHeight:1.6}}>
+              Self-report only.<br/>Do not trust without verification.
+            </div>
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div className={`ev-separator ${contradiction_detected ? 'sep-ne' : 'sep-arr'}`}>
+          {contradiction_detected ? '≠' : '→'}
+        </div>
+
+        {/* Column 2: MACHINE EVIDENCE */}
+        <div className="ev-col ev-evidence">
+          <div>
+            <div className="ev-layer-label lbl-evidence">Machine Evidence</div>
+            <div style={{fontSize:9, color:'rgba(6,182,212,.6)', fontFamily:'var(--font-mono)', marginBottom:8}}>✓ GROUND TRUTH</div>
+          </div>
+          {machine_evidence ? (
+            <div>
+              <div style={{fontFamily:'var(--font-mono)', fontSize:10, color:'var(--muted)', marginBottom:8}}>
+                source: {machine_evidence.source}
+              </div>
+              <div style={{fontFamily:'var(--font-mono)', fontSize:12}}>
+                {Object.entries(machine_evidence.observed_state || {}).map(([k,v]) => {
+                  let valCls = 'ev-val';
+                  if (v === true)  valCls = 'ev-val-t';
+                  if (v === false) valCls = 'ev-val-f';
+                  return (
+                    <div key={k} className="ev-kv mb-1">
+                      <span className="ev-key">{k}</span>
+                      <span className="ev-key">:</span>
+                      <span className={valCls}>{JSON.stringify(v)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="c-muted text-xs mono">No evidence collected</div>
+          )}
+          <div style={{marginTop:'auto', paddingTop:8, borderTop:'1px solid rgba(14,116,144,.15)'}}>
+            <div style={{fontSize:9, color:'rgba(6,182,212,.5)', fontFamily:'var(--font-mono)', lineHeight:1.6}}>
+              Source: sandbox.state_store<br/>Never generated by any LLM.
+            </div>
+          </div>
+        </div>
+
+        {/* Separator */}
+        <div className="ev-separator sep-arr">→</div>
+
+        {/* Column 3: VERIFICATION RESULT */}
+        <div className={`ev-col ${isFail ? 'ev-verdict-fail' : 'ev-verdict'}`}>
+          <div>
+            <div className={`ev-layer-label ${isFail ? 'lbl-verdict-fail' : 'lbl-verdict'}`}>Verification Result</div>
+            <div style={{fontSize:9, fontFamily:'var(--font-mono)', marginBottom:8, color: isFail ? 'rgba(239,68,68,.6)' : 'rgba(34,197,94,.6)'}}>
+              ✓ AUTHORITATIVE
+            </div>
+          </div>
+          <div>
+            <div style={{
+              fontFamily:'var(--font-mono)', fontSize:22, fontWeight:800,
+              color: isPass ? 'var(--green)' : isFail ? 'var(--red)' : 'var(--amber)'
+            }}>
+              {isPass ? '✓ PASS' : isFail ? '❌ FAIL' : '? ' + verdict}
+            </div>
+            <div style={{marginTop:10}}>
+              {(verification_result?.reasons || []).map((r,i) => (
+                <div key={i} style={{fontFamily:'var(--font-mono)', fontSize:10, color:'var(--slate)', lineHeight:1.6, marginBottom:2}}>
+                  {r}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{marginTop:'auto', paddingTop:8, borderTop: isFail ? '1px solid rgba(239,68,68,.15)' : '1px solid rgba(34,197,94,.15)'}}>
+            <div style={{fontSize:9, fontFamily:'var(--font-mono)', lineHeight:1.6, color: isFail ? 'rgba(239,68,68,.5)' : 'rgba(34,197,94,.5)'}}>
+              INCONCLUSIVE ≠ PASS<br/>Completion claimed only on PASS.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Recovery Panel ─── */
+function RecoveryPanel({ audit, actions }) {
+  const recoveryEvents = (audit?.events || []).filter(e => e.agent === 'recovery_agent');
+  const rollbackEvents = (audit?.events || []).filter(e => e.agent === 'rollback');
+
+  if (!recoveryEvents.length && !rollbackEvents.length) return null;
+
+  const steps = [];
+  recoveryEvents.forEach(ev => {
+    const action = actions.find(a => a.action_id === ev.action_id);
+    steps.push({ type: 'recovery', event: ev, action });
+  });
+  if (rollbackEvents.length) {
+    steps.push({ type: 'rollback', event: rollbackEvents[0] });
+  }
+
+  const stepConfig = [
+    { label: 'Failure Detected', color: 'var(--red)' },
+    { label: 'Failure Classified', color: 'var(--amber)' },
+    { label: 'Recovery Selected', color: 'var(--blue)' },
+    { label: 'Retry / Rollback', color: 'var(--purple)' },
+  ];
+
+  return (
+    <div className="card mt-4 fade-in">
+      <SectionLabel>Recovery Panel</SectionLabel>
+      {steps.map((s, i) => (
+        <div key={i}>
+          <div className="recovery-line">
+            <div>
+              <div className="recovery-dot" style={{background: s.type === 'rollback' ? 'var(--purple)' : 'var(--amber)'}} />
+              {i < steps.length-1 && <div className="recovery-connector mt-2" />}
+            </div>
+            <div style={{flex:1}}>
+              <div className="flex items-center gap-2 mb-1">
+                <Badge cls={s.type === 'rollback' ? 'badge-purple' : 'badge-amber'}>
+                  {s.type === 'rollback' ? 'ROLLBACK' : 'RECOVERY'}
+                </Badge>
+                {s.action && <span className="mono text-xs c-muted">{s.action.action_type}</span>}
+                {s.event.retry_number > 0 && <Badge cls="badge-cyan">retry #{s.event.retry_number}</Badge>}
+              </div>
+              <div className="mono text-xs c-slate" style={{lineHeight:1.6}}>
+                {s.event.decision || s.event.action}
+              </div>
+              {s.event.parameters?.category && (
+                <div className="mt-1">
+                  <Badge cls="badge-red">{s.event.parameters.category}</Badge>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {rollbackEvents.length > 0 && (
+        <div style={{background:'rgba(168,85,247,.06)', border:'1px solid rgba(168,85,247,.2)', borderRadius:'var(--radius)', padding:'10px 14px', marginTop:8}}>
+          <div className="mono text-xs" style={{color:'var(--purple)'}}>
+            {rollbackEvents[0].decision}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Audit Timeline ─── */
+function AuditTimeline({ audit }) {
+  const events = audit?.events || [];
+  if (!events.length) return null;
+
+  const [filter, setFilter] = useState('all');
+  const FILTERS = ['all','executor','evidence_collector','verifier','recovery_agent','rollback'];
+
+  const filtered = filter === 'all' ? events : events.filter(e => e.agent === filter);
+
+  return (
+    <div className="card mt-4 fade-in">
+      <div className="flex items-center justify-between mb-3">
+        <SectionLabel>Audit Timeline</SectionLabel>
+        <div className="flex gap-1">
+          {['all','executor','evidence_collector','verifier','recovery_agent'].map(f => (
+            <button
+              key={f}
+              className={`tab ${filter === f ? 'active' : ''}`}
+              onClick={() => setFilter(f)}
+            >
+              {f === 'all' ? 'All' : f === 'evidence_collector' ? 'Evidence' : f.split('_').map(w=>w[0].toUpperCase()+w.slice(1)).join(' ')}
+              {f !== 'all' && (
+                <span className="c-muted ml-1">{events.filter(e=>e.agent===f).length}</span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="audit-scroll">
+        {filtered.map((ev, i) => (
+          <div key={i} className="audit-event">
+            <span className={`audit-agent-badge agent-${ev.agent}`}>
+              {ev.agent === 'evidence_collector' ? 'evidence' : ev.agent}
+            </span>
+            <div style={{flex:1}}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="mono text-xs fw-600" style={{color:'#c4b5fd'}}>{ev.action}</span>
+                {ev.retry_number > 0 && <Badge cls="badge-amber">retry {ev.retry_number}</Badge>}
+                {ev.verification && (
+                  <Badge cls={VERDICT_BADGE[ev.verification] || 'badge-slate'}>{ev.verification}</Badge>
+                )}
+              </div>
+              {ev.decision && (
+                <div className="mono text-xs c-slate" style={{lineHeight:1.5}}>{ev.decision}</div>
+              )}
+              {ev.evidence?.observed && Object.keys(ev.evidence.observed).length > 0 && (
+                <div className="mono text-xs c-muted mt-1">
+                  observed: {JSON.stringify(ev.evidence.observed).slice(0,80)}…
+                </div>
+              )}
+            </div>
+            <span className="mono text-xs c-muted" style={{flexShrink:0, alignSelf:'flex-start'}}>
+              {ev.action_type || ''}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {audit?.summary && (
+        <div style={{marginTop:12, paddingTop:12, borderTop:'1px solid var(--border)', display:'flex', gap:16, flexWrap:'wrap'}}>
+          {[
+            ['executor', audit.summary.executor_events, 'var(--purple)'],
+            ['evidence', audit.summary.evidence_events, 'var(--cyan)'],
+            ['verifier', audit.summary.verifier_events, 'var(--green)'],
+            ['recovery', audit.summary.recovery_events, 'var(--amber)'],
+            ['PASS',     audit.summary.pass_verdicts,   'var(--green)'],
+            ['FAIL',     audit.summary.fail_verdicts,   'var(--red)'],
+          ].map(([label, count, color]) => (
+            <div key={label} className="flex items-center gap-1">
+              <span style={{color, fontFamily:'var(--font-mono)', fontSize:13, fontWeight:700}}>{count}</span>
+              <span className="c-muted text-xs">{label}</span>
+            </div>
+          ))}
+          {audit.summary.contradictions_caught > 0 && (
+            <div className="flex items-center gap-1">
+              <span style={{color:'var(--amber)', fontFamily:'var(--font-mono)', fontSize:13, fontWeight:700}}>
+                {audit.summary.contradictions_caught}
+              </span>
+              <span style={{color:'var(--amber)', fontSize:11}}>contradiction{audit.summary.contradictions_caught>1?'s':''} caught</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Final Status ─── */
+function FinalStatus({ workflow, summary, scenarioLabel }) {
+  if (!workflow) return null;
+
+  const status = workflow.final_status;
+  const cfg    = STATUS_CONFIG[status] || STATUS_CONFIG['FAILED'];
+
+  const metrics = [
+    { label: 'Total Actions',     value: summary?.total_actions ?? '—' },
+    { label: 'Verified Actions',  value: summary?.verified_actions ?? '—',  color: 'var(--green)' },
+    { label: 'Failed Actions',    value: summary?.failed_actions ?? '—',    color: summary?.failed_actions ? 'var(--red)' : null },
+    { label: 'Recovery Count',    value: summary?.recovery_count ?? '—',    color: summary?.recovery_count ? 'var(--amber)' : null },
+    { label: 'Evidence Coverage', value: summary ? `${Math.round(summary.evidence_coverage*100)}%` : '—', color: 'var(--cyan)' },
+  ];
+
+  return (
+    <div className={`final-status-card mt-4 fade-in`} style={{
+      background: cfg.cls === 'fs-completed' ? 'rgba(34,197,94,.05)' : cfg.cls === 'fs-blocked' ? 'rgba(239,68,68,.05)' : 'rgba(168,85,247,.05)',
+      borderColor: cfg.cls === 'fs-completed' ? 'rgba(34,197,94,.25)' : cfg.cls === 'fs-blocked' ? 'rgba(239,68,68,.25)' : 'rgba(168,85,247,.25)',
+    }}>
+      {scenarioLabel && (
+        <div className="mono text-xs c-muted mb-3">{scenarioLabel}</div>
+      )}
+      <span className="status-icon">{cfg.icon}</span>
+      <div className="status-text" style={{color: cfg.color}}>{cfg.label}</div>
+      {summary?.blocked_reason && (
+        <div className="mono text-xs c-red mt-2 mb-2">{summary.blocked_reason}</div>
+      )}
+      <div className="status-sub mono mt-2">{workflow.workflow_id}</div>
+
+      <div className="status-metrics mt-6">
+        {metrics.map(m => (
+          <div key={m.label} className="stat-box">
+            <div className="stat-value" style={{color: m.color || '#e2e8f0'}}>{m.value}</div>
+            <div className="stat-label">{m.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {summary?.rolled_back_actions > 0 && (
+        <div style={{marginTop:16, background:'rgba(168,85,247,.08)', border:'1px solid rgba(168,85,247,.2)', borderRadius:'var(--radius)', padding:'10px 14px'}}>
+          <span style={{color:'var(--purple)', fontFamily:'var(--font-mono)', fontSize:12, fontWeight:600}}>
+            ↩ {summary.rolled_back_actions} action{summary.rolled_back_actions > 1 ? 's' : ''} rolled back — sandbox restored to pre-run state
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   APP (main state + orchestration)
+═══════════════════════════════════════════════════════════════ */
+function App() {
+  const [health,      setHealth]      = useState(null);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState(null);
+  const [activeScenario, setActiveScenario] = useState(null);
+
+  // Workflow data
+  const [workflow,    setWorkflow]    = useState(null);
+  const [actions,     setActions]     = useState([]);
+  const [evidence,    setEvidence]    = useState(null);
+  const [audit,       setAudit]       = useState(null);
+  const [selectedId,  setSelectedId]  = useState(null);
+
+  /* Check API health on mount */
+  useEffect(() => {
+    API.health()
+      .then(() => setHealth(true))
+      .catch(() => setHealth(false));
+  }, []);
+
+  /* Run a scenario */
+  const runScenario = useCallback(async (goal, scenario) => {
+    setLoading(true);
+    setError(null);
+    setActiveScenario(scenario);
+    setWorkflow(null);
+    setActions([]);
+    setEvidence(null);
+    setAudit(null);
+    setSelectedId(null);
+
+    try {
+      // Step 1: initial run
+      const runResp = await API.runWorkflow(goal.trim(), scenario?.runConfig || {});
+      let finalId = runResp.workflow_id;
+
+      // Step 2: failure injection if needed
+      if (scenario?.injection) {
+        const injectResp = await API.injectFailure(finalId, scenario.injection);
+        finalId = injectResp.replay_workflow_id;
+      }
+
+      // Step 3: fetch all data in parallel
+      const [wf, acts, ev, aud] = await Promise.all([
+        API.getWorkflow(finalId),
+        API.getActions(finalId),
+        API.getEvidence(finalId),
+        API.getAudit(finalId),
+      ]);
+
+      setWorkflow(wf);
+      setActions(acts);
+      setEvidence(ev);
+      setAudit(aud);
+
+      // Auto-select first contradicted action or first action
+      const contradiction = acts.find(a => a.contradiction_detected);
+      setSelectedId(contradiction?.action_id || acts[0]?.action_id || null);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const summaryData = workflow ? {
+    total_actions: workflow.total_actions,
+    verified_actions: workflow.verified_actions,
+    failed_actions: workflow.failed_actions,
+    recovery_count: workflow.recovery_count,
+    evidence_coverage: workflow.evidence_coverage,
+    rolled_back_actions: workflow.rolled_back_actions,
+    blocked_reason: workflow.blocked_reason,
+  } : null;
+
+  return (
+    <div className="app">
+      <Header health={health} />
+
+      {/* Goal input + scenarios */}
+      <GoalInput onRun={runScenario} activeScenario={activeScenario} loading={loading} />
+
+      {/* Loading indicator */}
+      {loading && (
+        <div className="card flex items-center gap-3 mb-4 fade-in">
+          <Spinner />
+          <div>
+            <div className="fw-500">Running {activeScenario?.label || 'workflow'}…</div>
+            <div className="text-xs c-muted mono mt-1">PLAN → EXECUTE → COLLECT EVIDENCE → VERIFY → RECOVER if needed</div>
+          </div>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="error-box mb-4 fade-in">
+          <strong>Error:</strong> {error}
+          {health === false && (
+            <div className="mt-2 text-xs">
+              API appears to be offline. Start the backend: <code className="mono">uvicorn api.main:app --reload --port 8000</code>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Results */}
+      {(workflow || actions.length > 0) && !loading && (
+        <div className="fade-in">
+          {/* Pipeline */}
+          <PipelineFlow audit={audit} finalStatus={workflow?.final_status} loading={loading} />
+
+          {/* Task graph + evidence inspector side-by-side */}
+          <div className="grid-2 mb-4">
+            <TaskGraph
+              actions={actions}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              finalStatus={workflow?.final_status}
+            />
+            <EvidenceInspector
+              evidence={evidence}
+              selectedId={selectedId}
+              actions={actions}
+            />
+          </div>
+
+          {/* Recovery panel */}
+          <RecoveryPanel audit={audit} actions={actions} />
+
+          {/* Audit timeline */}
+          <AuditTimeline audit={audit} />
+
+          {/* Final status */}
+          <FinalStatus
+            workflow={workflow}
+            summary={summaryData}
+            scenarioLabel={activeScenario?.label}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Mount ─── */
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
